@@ -6,7 +6,7 @@
 
 ## Как запустить
 
-Откройте `kubomir.html` в браузере. Нужны клавиатура и мышь.
+Откройте `index.html` в браузере или [сайт на GitHub Pages](https://artsiomdziominski.github.io/kubomir/). Нужны клавиатура и мышь.
 
 ## Управление
 
