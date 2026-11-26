@@ -225,6 +225,31 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 }
 .menu .note { margin: 0; color: var(--muted); text-shadow: 0 1px 3px #000; line-height: 1.45; }
 @media (prefers-reduced-motion: reduce) { .splash { animation: none; } }
+.menu-buttons button.live { border-color: #5fd38a; }
+.coop { display: flex; flex-direction: column; gap: 12px; text-align: left; }
+.coop-name { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink); text-shadow: 0 1px 3px #000; }
+.coop input {
+    flex: 1; min-width: 0; font: 500 15px/1.2 var(--font-body); color: var(--ink);
+    padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: rgba(14, 22, 30, 0.9);
+    user-select: text; -webkit-user-select: text;
+}
+.coop input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.coop-card {
+    display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: 12px;
+    background: rgba(14, 22, 30, 0.85); border: 1px solid var(--line);
+}
+.coop-card h2 { margin: 0; font: 600 15px/1.2 var(--font-display); }
+.coop-card p { margin: 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
+.coop-card button { width: 100%; padding: 12px; }
+.join-row { display: flex; gap: 8px; }
+.join-row input { text-transform: uppercase; letter-spacing: 0.2em; font-weight: 600; }
+.join-row button { width: auto; flex: none; }
+.room-code {
+    font: 800 34px/1 var(--font-display); letter-spacing: 0.22em; text-align: center; color: var(--accent);
+    padding: 12px 0; border-radius: 10px; background: rgba(240, 178, 62, 0.1); user-select: text; -webkit-user-select: text;
+}
+.coop .menu-status { text-align: center; }
+.coop .note { text-align: center; }
 
 /* Inventory */
 .inv-panel { width: min(100%, 50rem); gap: 16px; }
@@ -310,9 +335,10 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
             <span id="splash" class="splash" aria-hidden="true"></span>
         </div>
         <p id="overlay-text">Бесконечный мир из блоков. Добывайте дерево и камень, спускайтесь в пещеры за углём, железом, золотом и кристаллами, плавьте руду в печке, создавайте инструменты и броню, освещайте темноту факелами, храните добычу в сундуках и проспите ночь в кровати, пока снаружи бродят Тени.</p>
-        <div class="menu-buttons">
+        <div class="menu-buttons" id="menu-buttons">
             <button id="play-btn" class="primary wide" type="button">Играть</button>
             <button id="new-btn" class="wide" type="button">Новый мир</button>
+            <button id="coop-btn" class="wide" type="button">Игра вдвоём</button>
             <div class="menu-row" id="file-row">
                 <button id="export-btn" type="button">Сохранить в файл</button>
                 <button id="import-btn" type="button">Загрузить из файла</button>
@@ -321,6 +347,31 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
                 <button id="keys-btn" type="button" aria-expanded="false" aria-controls="overlay-keys">Управление</button>
                 <button id="title-btn" type="button">Главное меню</button>
             </div>
+        </div>
+        <div class="coop" id="coop-panel" hidden>
+            <label class="coop-name">Ваше имя
+                <input id="coop-name" type="text" maxlength="16" placeholder="Игрок" autocomplete="nickname">
+            </label>
+            <div class="coop-card" id="host-card">
+                <h2>Позвать друга в свой мир</h2>
+                <p>Друг появится рядом с вами. Всё, что он построит, останется в вашем мире.</p>
+                <div class="room-code" id="room-code" hidden aria-label="Код комнаты"></div>
+                <button id="host-btn" type="button" class="primary">Открыть мир для друга</button>
+            </div>
+            <div class="coop-card" id="join-card">
+                <h2>Войти в мир друга</h2>
+                <p>Попросите у друга код комнаты. Ваш мир сохранится и вернётся, когда вы выйдете.</p>
+                <div class="join-row">
+                    <input id="join-code" type="text" maxlength="5" placeholder="Код" autocomplete="off" spellcheck="false" aria-label="Код комнаты">
+                    <button id="join-btn" type="button" class="primary">Войти</button>
+                </div>
+            </div>
+            <p class="menu-status" id="coop-status" role="status"></p>
+            <div class="menu-buttons">
+                <button id="coop-leave" class="wide" type="button" hidden>Выйти из мира друга</button>
+                <button id="coop-back" class="wide" type="button">Назад</button>
+            </div>
+            <p class="note">Нужен интернет. Бесплатный сервер PeerJS только знакомит два браузера, дальше игра идёт напрямую между ними. Мир, мобы и время идут у хозяина, поэтому ему лучше не закрывать вкладку.</p>
         </div>
         <p class="menu-status" id="menu-status" role="status"></p>
         <input type="file" id="import-file" accept=".json,application/json" hidden>
@@ -909,6 +960,7 @@ function setBlock(x, y, z, id) {
     const k = key(cx, cz);
     (edits[k] || (edits[k] = {}))[i] = id;
     saveSoon();
+    if (!net.applying) netSend({ t: 'b', x, y, z, id });
 
     if (lightOf(old)) c.torches.delete(i);
     if (lightOf(id)) c.torches.add(i);
@@ -1962,6 +2014,8 @@ function renderFurnaceBars() {
 
 // Furnaces keep working while their chunk is loaded, window open or not
 function updateFurnaces(dt) {
+    // A guest's furnaces burn on the host; the guest only shows what the host sends
+    if (net.role === 'guest') { renderFurnaceBars(); return; }
     for (const k in furnaceStore) {
         const f = furnaceStore[k];
         const p = k.split(','), x = +p[0], y = +p[1], z = +p[2];
@@ -1970,6 +2024,7 @@ function updateFurnaces(dt) {
         if (!isFurnace(id)) { if (f !== openFurnace) delete furnaceStore[k]; continue; }
         if (tickFurnace(f, dt)) {
             saveSoon();
+            netSendFurnace(k, f);
             if (f === openFurnace) { renderInventory(); renderHotbar(); }
         }
         const want = f.burn > 0 ? FURNACE_LIT : FURNACE;
@@ -2300,6 +2355,26 @@ const MOB_TYPES = {
     shade: { name: 'Тень', hw: 0.3, h: 1.9, hp: 18, speed: 3.3, hostile: true }
 };
 const mobs = [];
+let mobSeq = 0;
+
+// ---------- Playing together: shared state ----------
+// The host runs the world (mobs, time, furnaces); the guest mirrors it. Each side sends its own
+// actions: block changes, chest and furnace slots, hits, and where its player is.
+const net = {
+    role: null,        // null | 'host' | 'guest'
+    peer: null, conn: null, code: '',
+    connected: false,
+    applying: false,   // true while applying the friend's change, so it isn't sent back
+    posT: 0, mobT: 0, timeT: 0, meT: 0, furnT: 0
+};
+const remote = { pos: new THREE.Vector3(), tp: null, yaw: 0, tyaw: 0, pitch: 0, alive: false, sw: 0,
+                 name: '', pid: '', avatar: null, hw: 0.3, h: 1.8, phase: 0 };
+const remoteMobs = new Map(); // guest: host mob id -> local copy
+let guestStore = {};          // host: what each visiting friend carried, by their player id
+function netSend(msg) {
+    if (!net.connected || !net.conn) return;
+    try { net.conn.send(msg); } catch (e) { /* the close handler deals with a dead link */ }
+}
 
 function boxPart(parent, w, h, d, color, x, y, z, glow, list) {
     const mat = glow
@@ -2364,6 +2439,7 @@ function buildShade(m) {
 function createMob(type, x, y, z) {
     const T = MOB_TYPES[type];
     const m = {
+        nid: ++mobSeq, // id the host and the guest both use for this mob
         type, pos: new THREE.Vector3(x, y, z), vel: new THREE.Vector3(),
         hw: T.hw, h: T.h, hp: T.hp, onGround: false, hitWall: false,
         yaw: Math.random() * Math.PI * 2, phase: 0, wanderT: 0, wx: 0, wz: 0,
@@ -2390,23 +2466,32 @@ function clearMobs() {
     while (mobs.length) removeMob(mobs[0]);
 }
 
+// byPlayer: true for this player, 'remote' for the friend (their loot is sent over)
 function killMob(m, byPlayer) {
     m.dying = 0.5;
     if (byPlayer && m.type === 'boar') {
-        gain(MEAT, 1 + Math.floor(Math.random() * 2));
-        gain(HIDE, 1);
+        const loot = [[MEAT, 1 + Math.floor(Math.random() * 2)], [HIDE, 1]];
+        if (byPlayer === 'remote') netSend({ t: 'gain', items: loot });
+        else for (const [id, n] of loot) gain(id, n);
     }
 }
 
-function hitMob(m, dmg) {
+function hitMob(m, dmg, by) {
     if (m.dying) return;
+    if (m.remote) {
+        // A guest only sees the host's mobs: the blow goes to the host, the flash shows at once
+        netSend({ t: 'hit', id: m.nid, dmg });
+        m.flash = 0.3;
+        return;
+    }
+    const from = by === 'remote' ? remote.pos : player.pos;
     m.hp -= dmg;
     m.flash = 0.3;
-    const dx = m.pos.x - player.pos.x, dz = m.pos.z - player.pos.z;
+    const dx = m.pos.x - from.x, dz = m.pos.z - from.z;
     const d = Math.hypot(dx, dz) || 1;
     m.vel.x = dx / d * 7; m.vel.z = dz / d * 7; m.vel.y = 5;
     if (!MOB_TYPES[m.type].hostile) m.fleeT = 4;
-    if (m.hp <= 0) killMob(m, true);
+    if (m.hp <= 0) killMob(m, by === 'remote' ? 'remote' : true);
 }
 
 function angleLerp(a, b, t) {
@@ -2426,21 +2511,29 @@ function updateMob(m, dt) {
         return;
     }
 
-    const dx = player.pos.x - p.x, dz = player.pos.z - p.z;
+    // Mobs go after (and flee from) whichever player is closer; the friend counts when hosting
+    let tp = player.pos, local = true;
+    let alive = state === 'play' || state === 'inventory';
+    if (net.role === 'host' && remote.alive) {
+        const dl = Math.hypot(player.pos.x - p.x, player.pos.z - p.z);
+        const dr = Math.hypot(remote.pos.x - p.x, remote.pos.z - p.z);
+        if (dr < dl || !alive) { tp = remote.pos; local = false; alive = true; }
+    }
+    const dx = tp.x - p.x, dz = tp.z - p.z;
     const dist = Math.hypot(dx, dz) || 0.001;
     if (dist > 80) { removeMob(m); return; }
 
     let mx = 0, mz = 0, speed = T.speed;
-    const alive = state === 'play' || state === 'inventory';
     if (T.hostile && alive && dist < 22) {
         mx = dx / dist; mz = dz / dist;
-        const dy = Math.abs(player.pos.y - p.y);
+        const dy = Math.abs(tp.y - p.y);
         if (dist < 1.3) { mx = 0; mz = 0; }
         m.attackCd -= dt;
         if (dist < 1.6 && dy < 1.6 && m.attackCd <= 0) {
             m.attackCd = 1;
             m.swing = 0.3;
-            hurtPlayer(3, p);
+            if (local) hurtPlayer(3, p);
+            else netSend({ t: 'hurt', n: 3, x: p.x, y: p.y, z: p.z });
         }
     } else if (m.fleeT > 0) {
         m.fleeT -= dt;
@@ -2468,10 +2561,19 @@ function updateMob(m, dt) {
     stepBody(m, dt);
 
     if (mx || mz) m.yaw = angleLerp(m.yaw, Math.atan2(mx, mz), Math.min(1, 8 * dt));
-    m.group.position.copy(p);
-    m.group.rotation.y = m.yaw;
+    animateMob(m, Math.hypot(m.vel.x, m.vel.z), dt);
 
-    const moving = Math.hypot(m.vel.x, m.vel.z);
+    // Shades fade away in daylight, but only under open sky
+    if (T.hostile && daylight > 0.55 && underOpenSky(p)) {
+        m.hp -= 4 * dt;
+        if (m.hp <= 0) killMob(m, false);
+    }
+}
+
+// Pose, walk cycle and hit flash; shared by simulated mobs and the host's mobs seen by a guest
+function animateMob(m, moving, dt) {
+    m.group.position.copy(m.pos);
+    m.group.rotation.y = m.yaw;
     m.phase += moving * dt * 3.2;
     const swingAmt = Math.min(1, moving / 2) * 0.7;
     m.legs.forEach((leg, i) => { leg.rotation.x = Math.sin(m.phase + (i % 2 ? Math.PI : 0) + (i > 1 ? Math.PI : 0)) * swingAmt; });
@@ -2480,16 +2582,29 @@ function updateMob(m, dt) {
         const reach = -1.25 - (m.swing > 0 ? 0.5 : 0);
         m.arms.forEach((arm, i) => { arm.rotation.x = reach + Math.sin(m.phase + i * Math.PI) * 0.15; });
     }
-
-    // Shades fade away in daylight, but only under open sky
-    if (T.hostile && daylight > 0.55 && underOpenSky(p)) {
-        m.hp -= 4 * dt;
-        if (m.hp <= 0) killMob(m, false);
-    }
-
     if (m.flash > 0) m.flash -= dt;
     const f = Math.max(0, m.flash) / 0.3 * 0.7;
     for (const mat of m.mats) mat.emissive.setRGB(f, 0, 0);
+}
+
+// A guest's copy of a host mob glides to the last position the host sent
+function updateRemoteMob(m, dt) {
+    if (m.dying > 0) {
+        m.dying -= dt;
+        m.group.rotation.z = (1 - Math.max(0, m.dying) / 0.5) * Math.PI / 2;
+        if (m.dying <= 0) { removeMob(m); remoteMobs.delete(m.nid); }
+        return;
+    }
+    let moving = 0;
+    if (m.tp) {
+        const k = Math.min(1, dt * 12), ox = m.pos.x, oz = m.pos.z;
+        m.pos.x += (m.tp[0] - m.pos.x) * k;
+        m.pos.y += (m.tp[1] - m.pos.y) * k;
+        m.pos.z += (m.tp[2] - m.pos.z) * k;
+        m.yaw = angleLerp(m.yaw, m.tyaw, k);
+        moving = Math.hypot(m.pos.x - ox, m.pos.z - oz) / Math.max(dt, 1e-3);
+    }
+    animateMob(m, moving, dt);
 }
 
 function topOpaque(x, z) {
@@ -2714,6 +2829,10 @@ function useBed(x, y, z) {
     const fresh = !player.bed || player.bed[0] !== x || player.bed[1] !== y || player.bed[2] !== z;
     player.bed = [x, y, z];
     saveSoon();
+    if (net.role === 'guest') {
+        showToast('Точка возрождения — у этой кровати. Ночь пропускает только хозяин мира');
+        return;
+    }
     if (daylight >= 0.35) {
         showToast(fresh ? 'Точка возрождения — у этой кровати. Спать можно только ночью' : 'Спать можно только ночью');
         return;
@@ -2795,6 +2914,7 @@ function useItem() {
         return;
     }
     const bodies = [player, ...mobs];
+    if (net.connected && remote.alive) bodies.push(remote);
     for (const b of bodies) {
         const p = b.pos;
         if (x < p.x + b.hw && x + 1 > p.x - b.hw && y < p.y + b.h && y + 1 > p.y && z < p.z + b.hw && z + 1 > p.z - b.hw) return;
@@ -2814,6 +2934,7 @@ function useItem() {
         f.face = Math.abs(lx) > Math.abs(lz) ? [lx > 0 ? -1 : 1, 0] : [0, lz > 0 ? -1 : 1];
     }
     setBlock(x, y, z, place);
+    if (id === FURNACE) netSendFurnace(chestKey(x, y, z), furnaceAt(x, y, z));
     startSwing();
     removeItem(id, 1);
 }
@@ -2833,11 +2954,13 @@ function emptyChest(x, y, z) {
         if (slots.some(Boolean)) {
             showToast('Инвентарь полон: часть вещей осталась в сундуке');
             saveSoon();
+            netSend({ t: 'c', k, s: slotsOut(slots) });
             return false;
         }
         if (moved) showToast('Вещи из сундука — в инвентаре');
     }
     delete chestStore[k];
+    netSend({ t: 'c', k, s: null });
     return true;
 }
 
@@ -2855,11 +2978,13 @@ function emptyFurnace(x, y, z) {
         if (f.slots.some(Boolean)) {
             showToast('Инвентарь полон: часть вещей осталась в печке');
             saveSoon();
+            netSendFurnace(k, f);
             return false;
         }
         if (moved) showToast('Вещи из печки — в инвентаре');
     }
     delete furnaceStore[k];
+    netSend({ t: 'f', k, gone: 1 });
     return true;
 }
 
@@ -3035,6 +3160,9 @@ function clickSlot(slots, i, shift) {
         picked = null;
     }
     saveSoon();
+    // The friend sees chest and furnace slots change straight away
+    if (openChest) { const k = keyOfChest(openChest); if (k) netSend({ t: 'c', k, s: slotsOut(openChest) }); }
+    if (openFurnace) { const k = keyOfFurnace(openFurnace); if (k) netSendFurnace(k, openFurnace); }
     renderInventory();
     renderHotbar();
     renderArmor();
@@ -3138,11 +3266,12 @@ function saveData() {
             seed, edits, dayTime,
             inv: inv.map(s => s ? [s.id, s.n] : null),
             hp: player.hp, spawn: player.spawn, bed: player.bed, chests: chestsForSave(), furnaces: furnacesForSave(),
-            armor: armor.map(s => s ? s.id : null),
+            armor: armor.map(s => s ? s.id : null), guests: guestStore,
             player: { x: player.pos.x, y: player.pos.y, z: player.pos.z, yaw: player.yaw, pitch: player.pitch, fly: player.fly }
     };
 }
 function save() {
+    if (net.role === 'guest') return; // a visit never overwrites the guest's own world
     try {
         localStorage.setItem(SAVE_KEY, JSON.stringify(saveData()));
     } catch (e) { /* storage unavailable: the world just isn't kept */ }
@@ -3222,6 +3351,612 @@ function importWorld(text) {
     return true;
 }
 
+// ---------- Playing together: connection ----------
+// PeerJS's free server only introduces the two browsers; after that, messages go straight between them
+const PEERJS_URL = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';
+const ROOM_PREFIX = 'kubomir-room-';
+const ROOM_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const ROOM_CODE_LEN = 5;
+const NET_VERSION = 1;
+const PROFILE_KEY = 'kubomir-profile';
+
+function randomToken(n, alphabet) {
+    const abc = alphabet || 'abcdefghijklmnopqrstuvwxyz0123456789';
+    const buf = new Uint32Array(n);
+    if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(buf);
+    else for (let i = 0; i < n; i++) buf[i] = Math.floor(Math.random() * 2 ** 32);
+    let s = '';
+    for (let i = 0; i < n; i++) s += abc[buf[i] % abc.length];
+    return s;
+}
+
+// This player's id (so a host can give back what they carried last time) and name
+let profile = null;
+function me() {
+    if (profile) return profile;
+    try { profile = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null'); } catch (e) { profile = null; }
+    if (!profile || typeof profile.id !== 'string') profile = { id: randomToken(12), name: '' };
+    if (typeof profile.name !== 'string') profile.name = '';
+    saveProfile();
+    return profile;
+}
+function saveProfile() {
+    try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch (e) { /* ignore */ }
+}
+function cleanName(s) {
+    return String(s || '').replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g, '').trim().slice(0, 16);
+}
+const myName = () => cleanName(me().name) || 'Игрок';
+
+// Everything from the friend is checked before it touches the world
+const validBlockId = id => id === AIR || (Number.isInteger(id) && !!BLOCKS[id]);
+const validItemId = id => Number.isInteger(id) && (isBlockItem(id) ? !!BLOCKS[id] : !!ITEMS[id]);
+const finite = v => typeof v === 'number' && isFinite(v);
+function sanitizeSlots(a, len) {
+    if (!Array.isArray(a) || a.length !== len) return null;
+    return a.map(s => Array.isArray(s) && validItemId(s[0]) && Number.isInteger(s[1]) && s[1] > 0
+        ? { id: s[0], n: Math.min(s[1], itemInfo(s[0]).stack) } : null);
+}
+const slotsOut = slots => slots.map(s => s ? [s.id, s.n] : null);
+function setSlotsInPlace(dst, src) { for (let i = 0; i < dst.length; i++) dst[i] = src[i]; }
+function parseKey(k) {
+    const m = typeof k === 'string' && /^(-?\d{1,7}),(\d{1,2}),(-?\d{1,7})$/.exec(k);
+    if (!m || +m[2] >= H) return null;
+    return [+m[1], +m[2], +m[3]];
+}
+function sanitizeEdits(e) {
+    const out = {};
+    if (!e || typeof e !== 'object') return out;
+    for (const k in e) {
+        if (!/^-?\d{1,6},-?\d{1,6}$/.test(k) || !e[k] || typeof e[k] !== 'object') continue;
+        const ce = {};
+        for (const i in e[k]) {
+            const n = +i, id = e[k][i];
+            if (Number.isInteger(n) && n >= 0 && n < CS * CS * H && validBlockId(id)) ce[n] = id;
+        }
+        out[k] = ce;
+    }
+    return out;
+}
+function sanitizeChests(d) {
+    const out = {};
+    if (d && typeof d === 'object') for (const k in d) {
+        const s = parseKey(k) && sanitizeSlots(d[k], CHEST_SLOTS);
+        if (s) out[k] = slotsOut(s);
+    }
+    return out;
+}
+function sanitizeFurnaces(d) {
+    const out = {};
+    if (d && typeof d === 'object') for (const k in d) {
+        const f = d[k], s = parseKey(k) && f && sanitizeSlots(f.s, 3);
+        if (s) out[k] = { s: slotsOut(s), b: finite(f.b) ? f.b : 0, m: finite(f.m) ? f.m : 0, p: finite(f.p) ? f.p : 0, f: validFace(f.f) ? f.f : [0, 1] };
+    }
+    return out;
+}
+const validFace = f => Array.isArray(f) && f.length === 2 && [-1, 0, 1].includes(f[0]) && [-1, 0, 1].includes(f[1]) &&
+    Math.abs(f[0]) + Math.abs(f[1]) === 1;
+const validPos = p => p && finite(p.x) && finite(p.y) && finite(p.z) && Math.abs(p.x) < 1e6 && Math.abs(p.z) < 1e6;
+
+function keyOfChest(slots) { for (const k in chestStore) if (chestStore[k] === slots) return k; return null; }
+function keyOfFurnace(f) { for (const k in furnaceStore) if (furnaceStore[k] === f) return k; return null; }
+function netSendFurnace(k, f) {
+    netSend({ t: 'f', k, s: slotsOut(f.slots), b: f.burn, m: f.burnMax, p: f.prog, face: f.face });
+}
+
+function applyBlock(msg) {
+    const { x, y, z, id } = msg;
+    if (!Number.isInteger(x) || !Number.isInteger(y) || !Number.isInteger(z) || y < 0 || y >= H || !validBlockId(id)) return;
+    net.applying = true;
+    try {
+        if (chunkLoadedAt(x, z)) {
+            setBlock(x, y, z, id);
+        } else {
+            // Not loaded here: remember it, the chunk picks it up when it loads
+            const cx = Math.floor(x / CS), cz = Math.floor(z / CS);
+            (edits[key(cx, cz)] || (edits[key(cx, cz)] = {}))[idx(x - cx * CS, y, z - cz * CS)] = id;
+            saveSoon();
+        }
+    } finally {
+        net.applying = false;
+    }
+}
+
+function applyChest(msg) {
+    const xyz = parseKey(msg.k);
+    if (!xyz) return;
+    if (msg.s === null) {
+        const old = chestStore[msg.k];
+        delete chestStore[msg.k];
+        if (old && openChest === old && state === 'inventory') closeInventory();
+        return;
+    }
+    const s = sanitizeSlots(msg.s, CHEST_SLOTS);
+    if (!s) return;
+    const dst = chestSlots(xyz[0], xyz[1], xyz[2]);
+    setSlotsInPlace(dst, s);
+    saveSoon();
+    if (openChest === dst) renderInventory();
+}
+
+function applyFurnace(msg) {
+    const xyz = parseKey(msg.k);
+    if (!xyz) return;
+    if (msg.gone) {
+        const old = furnaceStore[msg.k];
+        delete furnaceStore[msg.k];
+        if (old && openFurnace === old && state === 'inventory') closeInventory();
+        return;
+    }
+    const s = sanitizeSlots(msg.s, 3);
+    if (!s) return;
+    const f = furnaceAt(xyz[0], xyz[1], xyz[2]);
+    setSlotsInPlace(f.slots, s);
+    if (validFace(msg.face) && (msg.face[0] !== f.face[0] || msg.face[1] !== f.face[1])) {
+        f.face = msg.face.slice();
+        rebuildAt(Math.floor(xyz[0] / CS), Math.floor(xyz[2] / CS));
+    }
+    // Fire and progress belong to the host
+    if (net.role === 'guest') {
+        f.burn = finite(msg.b) ? Math.max(0, msg.b) : 0;
+        f.burnMax = finite(msg.m) ? Math.max(0, msg.m) : 0;
+        f.prog = finite(msg.p) ? Math.max(0, msg.p) : 0;
+    }
+    saveSoon();
+    if (openFurnace === f) renderInventory();
+}
+
+const r2 = v => Math.round(v * 100) / 100;
+function mobSnapshot() {
+    return mobs.filter(m => !m.remote).map(m => [m.nid, m.type === 'boar' ? 0 : 1, r2(m.pos.x), r2(m.pos.y), r2(m.pos.z),
+        r2(m.yaw), m.flash > 0 ? 1 : 0, m.dying > 0 ? 1 : 0, m.swing > 0 ? 1 : 0]);
+}
+// Guest: bring the local copies in line with the host's list
+function applyMobs(list) {
+    if (!Array.isArray(list)) return;
+    const seen = new Set();
+    for (const a of list.slice(0, 64)) {
+        if (!Array.isArray(a) || a.length < 9 || !Number.isInteger(a[0]) || ![a[2], a[3], a[4], a[5]].every(finite)) continue;
+        const [id, ti, x, y, z, yaw, fl, dy, sw] = a;
+        let m = remoteMobs.get(id);
+        if (!m) {
+            if (dy) continue;
+            m = createMob(ti ? 'shade' : 'boar', x, y, z);
+            m.remote = true; m.nid = id; m.yaw = yaw;
+            remoteMobs.set(id, m);
+        }
+        m.tp = [x, y, z]; m.tyaw = yaw;
+        if (fl && m.flash <= 0) m.flash = 0.3;
+        if (dy && !m.dying) m.dying = 0.5;
+        if (sw) m.swing = 0.3;
+        seen.add(id);
+    }
+    for (const [id, m] of remoteMobs) {
+        if (!seen.has(id) && !m.dying) { removeMob(m); remoteMobs.delete(id); }
+    }
+}
+
+// The friend: a blocky figure with a name over the head
+function buildAvatar() {
+    removeAvatar();
+    const g = new THREE.Group(), mats = [];
+    const shirt = net.role === 'host' ? 0x4d8fc0 : 0xc0574d; // guests wear blue, hosts red
+    const legs = [], arms = [];
+    for (const x of [0.12, -0.12]) {
+        const pv = limb(g, x, 0.75, 0);
+        boxPart(pv, 0.22, 0.75, 0.24, 0x3b4260, 0, -0.375, 0, false, mats);
+        legs.push(pv);
+    }
+    boxPart(g, 0.5, 0.7, 0.28, shirt, 0, 1.1, 0, false, mats);
+    const head = limb(g, 0, 1.45, 0);
+    boxPart(head, 0.44, 0.44, 0.44, 0xd9a27a, 0, 0.22, 0, false, mats);
+    boxPart(head, 0.46, 0.12, 0.46, 0x3b2a1e, 0, 0.42, 0, false, mats);
+    boxPart(head, 0.08, 0.06, 0.02, 0x1a1412, 0.1, 0.26, 0.225, false, mats);
+    boxPart(head, 0.08, 0.06, 0.02, 0x1a1412, -0.1, 0.26, 0.225, false, mats);
+    for (const x of [0.34, -0.34]) {
+        const pv = limb(g, x, 1.42, 0);
+        boxPart(pv, 0.18, 0.68, 0.2, shirt, 0, -0.3, 0, false, mats);
+        boxPart(pv, 0.18, 0.12, 0.2, 0xd9a27a, 0, -0.68, 0, false, mats);
+        arms.push(pv);
+    }
+    // Name tag
+    const cv = document.createElement('canvas');
+    cv.width = 256; cv.height = 64;
+    const c = cv.getContext('2d');
+    c.fillStyle = 'rgba(8, 14, 20, 0.6)';
+    c.fillRect(0, 8, 256, 48);
+    c.font = '600 30px Inter, system-ui, sans-serif';
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillStyle = '#eef3ef';
+    c.fillText(remote.name || 'Игрок', 128, 33);
+    const tex = new THREE.CanvasTexture(cv);
+    const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+    label.scale.set(1.6, 0.4, 1);
+    label.position.set(0, 2.25, 0);
+    g.add(label);
+    g.visible = false;
+    scene.add(g);
+    remote.avatar = { group: g, legs, arms, head, mats, label };
+}
+function removeAvatar() {
+    const a = remote.avatar;
+    if (!a) return;
+    scene.remove(a.group);
+    a.group.traverse(o => {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); }
+    });
+    remote.avatar = null;
+}
+function updateAvatar(dt) {
+    const a = remote.avatar;
+    if (!a) return;
+    a.group.visible = remote.alive && !!remote.tp;
+    if (!remote.tp) return;
+    const k = Math.min(1, dt * 12), ox = remote.pos.x, oz = remote.pos.z;
+    remote.pos.x += (remote.tp[0] - remote.pos.x) * k;
+    remote.pos.y += (remote.tp[1] - remote.pos.y) * k;
+    remote.pos.z += (remote.tp[2] - remote.pos.z) * k;
+    remote.yaw = angleLerp(remote.yaw, remote.tyaw, k);
+    const moving = Math.hypot(remote.pos.x - ox, remote.pos.z - oz) / Math.max(dt, 1e-3);
+    a.group.position.copy(remote.pos);
+    a.group.rotation.y = remote.yaw + Math.PI; // the model faces +z, a player at yaw 0 looks along -z
+    a.head.rotation.x = -remote.pitch * 0.8;
+    remote.phase += Math.min(moving, 8) * dt * 2.6;
+    const amt = Math.min(1, moving / 3) * 0.8;
+    a.legs.forEach((leg, i) => { leg.rotation.x = Math.sin(remote.phase + i * Math.PI) * amt; });
+    a.arms.forEach((arm, i) => { arm.rotation.x = Math.sin(remote.phase + (i + 1) * Math.PI) * amt * 0.8; });
+    remote.sw = Math.max(0, remote.sw - dt);
+    if (remote.sw > 0) a.arms[0].rotation.x = -1.3 * Math.sin((remote.sw / 0.3) * Math.PI);
+}
+
+function sendMe() {
+    netSend({
+        t: 'me', inv: slotsOut(inv), armor: armor.map(s => s ? s.id : null), hp: player.hp, bed: player.bed,
+        pos: { x: r2(player.pos.x), y: r2(player.pos.y), z: r2(player.pos.z), yaw: r2(player.yaw), pitch: r2(player.pitch) }
+    });
+}
+
+function netUpdate(dt) {
+    updateAvatar(dt);
+    if (!net.connected) return;
+    net.posT -= dt;
+    if (net.posT <= 0) {
+        net.posT = 0.1;
+        netSend({ t: 'p', x: r2(player.pos.x), y: r2(player.pos.y), z: r2(player.pos.z), yaw: r2(player.yaw),
+                  pitch: r2(player.pitch), sw: swingT < SWING_TIME * 0.5 ? 1 : 0, al: state === 'dead' ? 0 : 1 });
+    }
+    if (net.role === 'host') {
+        net.mobT -= dt;
+        if (net.mobT <= 0) { net.mobT = 0.1; netSend({ t: 'm', l: mobSnapshot() }); }
+        net.timeT -= dt;
+        if (net.timeT <= 0) { net.timeT = 2; netSend({ t: 'time', d: dayTime }); }
+        net.furnT -= dt;
+        if (net.furnT <= 0) {
+            net.furnT = 0.5;
+            for (const k in furnaceStore) { const f = furnaceStore[k]; if (f.burn > 0 || f.prog > 0) netSendFurnace(k, f); }
+        }
+    } else if (net.role === 'guest') {
+        net.meT -= dt;
+        if (net.meT <= 0) { net.meT = 5; sendMe(); }
+    }
+}
+
+function onNetData(msg) {
+    if (!msg || typeof msg !== 'object' || typeof msg.t !== 'string') return;
+    const host = net.role === 'host', guest = net.role === 'guest';
+    switch (msg.t) {
+        case 'hello': if (host) onHello(msg); break;
+        case 'welcome': if (net.joining) onWelcome(msg); break;
+        case 'full': if (net.joining) failNet('В этом мире уже играет гость'); break;
+        case 'refuse': if (net.joining) failNet('У друга другая версия игры. Обновите страницу у обоих'); break;
+        case 'p':
+            if (!net.connected || ![msg.x, msg.y, msg.z, msg.yaw, msg.pitch].every(finite)) break;
+            if (!remote.tp) remote.pos.set(msg.x, msg.y, msg.z);
+            remote.tp = [msg.x, msg.y, msg.z];
+            remote.tyaw = msg.yaw; remote.pitch = msg.pitch;
+            remote.alive = !!msg.al;
+            if (msg.sw && remote.sw <= 0) remote.sw = 0.3;
+            break;
+        case 'b': if (net.connected) applyBlock(msg); break;
+        case 'c': if (net.connected) applyChest(msg); break;
+        case 'f': if (net.connected) applyFurnace(msg); break;
+        case 'time': if (guest && finite(msg.d)) dayTime = ((msg.d % 1) + 1) % 1; break;
+        case 'm': if (guest) applyMobs(msg.l); break;
+        case 'hit':
+            if (host && Number.isInteger(msg.id) && finite(msg.dmg)) {
+                const m = mobs.find(o => o.nid === msg.id && !o.remote);
+                if (m) hitMob(m, Math.max(0, Math.min(20, msg.dmg)), 'remote');
+            }
+            break;
+        case 'hurt':
+            if (guest && finite(msg.n) && [msg.x, msg.y, msg.z].every(finite)) hurtPlayer(Math.max(0, Math.min(10, msg.n)), { x: msg.x, y: msg.y, z: msg.z });
+            break;
+        case 'gain':
+            if (guest && Array.isArray(msg.items)) {
+                for (const it of msg.items.slice(0, 4)) {
+                    if (Array.isArray(it) && validItemId(it[0]) && Number.isInteger(it[1]) && it[1] > 0 && it[1] <= 8) gain(it[0], it[1]);
+                }
+            }
+            break;
+        case 'me': if (host && remote.pid) storeGuest(msg); break;
+        case 'bye': onNetClose(); break;
+    }
+}
+
+function onHello(msg) {
+    if (net.connected) return;
+    if (msg.v !== NET_VERSION) {
+        try { net.conn.send({ t: 'refuse' }); } catch (e) { /* ignore */ }
+        return;
+    }
+    clearTimeout(net.helloTimer);
+    net.connected = true;
+    remote.name = cleanName(msg.name) || 'Друг';
+    remote.pid = typeof msg.pid === 'string' ? msg.pid.slice(0, 32) : '';
+    remote.tp = null; remote.alive = false;
+    const d = saveData();
+    netSend({
+        t: 'welcome', v: NET_VERSION, name: myName(),
+        world: { seed: d.seed, edits: d.edits, dayTime: d.dayTime, chests: d.chests, furnaces: d.furnaces, spawn: player.spawn },
+        you: (remote.pid && guestStore[remote.pid]) || null,
+        host: { x: player.pos.x, y: player.pos.y, z: player.pos.z }
+    });
+    buildAvatar();
+    showToast(`${remote.name} вошёл в ваш мир`);
+    setCoopStatus(`${remote.name} в вашем мире`);
+    updateCoopUI();
+}
+
+function storeGuest(msg) {
+    const inv27 = sanitizeSlots(msg.inv, 27);
+    if (!inv27) return;
+    guestStore[remote.pid] = {
+        inv: slotsOut(inv27),
+        armor: Array.isArray(msg.armor) ? msg.armor.slice(0, 4).map((id, slot) => armorSlotOf(id) === slot ? id : null) : [null, null, null, null],
+        hp: finite(msg.hp) ? Math.max(1, Math.min(MAX_HP, Math.round(msg.hp))) : MAX_HP,
+        bed: Array.isArray(msg.bed) && msg.bed.length === 3 && msg.bed.every(Number.isInteger) ? msg.bed : null,
+        pos: validPos(msg.pos) ? { x: msg.pos.x, y: msg.pos.y, z: msg.pos.z, yaw: finite(msg.pos.yaw) ? msg.pos.yaw : 0, pitch: finite(msg.pos.pitch) ? msg.pos.pitch : 0 } : null
+    };
+    saveSoon();
+}
+
+function onWelcome(msg) {
+    const w = msg.world;
+    if (!w || typeof w.seed !== 'number' || msg.v !== NET_VERSION) { failNet('Не удалось получить мир друга'); return; }
+    clearTimeout(net.joinTimer);
+    const you = msg.you && typeof msg.you === 'object' ? msg.you : {};
+    const youInv = sanitizeSlots(you.inv, 27);
+    let start = validPos(you.pos) ? you.pos : null;
+    if (!start && validPos(msg.host)) start = { x: msg.host.x + 1.2, y: msg.host.y + 0.1, z: msg.host.z, yaw: 0, pitch: 0 };
+    net.role = 'guest';
+    net.joining = false;
+    net.connected = true;
+    remote.name = cleanName(msg.name) || 'Друг';
+    remote.tp = null; remote.alive = false;
+    startWorld({
+        seed: w.seed, edits: sanitizeEdits(w.edits), dayTime: finite(w.dayTime) ? w.dayTime : 0.3,
+        chests: sanitizeChests(w.chests), furnaces: sanitizeFurnaces(w.furnaces),
+        spawn: Array.isArray(w.spawn) && w.spawn.length === 3 && w.spawn.every(finite) ? w.spawn : undefined,
+        inv: youInv ? slotsOut(youInv) : null, armor: you.armor,
+        hp: finite(you.hp) ? Math.max(1, Math.min(MAX_HP, you.hp)) : MAX_HP,
+        bed: Array.isArray(you.bed) && you.bed.length === 3 && you.bed.every(Number.isInteger) ? you.bed : null,
+        player: start
+    });
+    remoteMobs.clear();
+    buildAvatar();
+    state = 'menu';
+    showMenu('title');
+    playBtn.textContent = 'Играть';
+    setMenuStatus(`Вы в мире игрока ${remote.name}. Нажмите «Играть»`);
+}
+
+function onNetClose() {
+    const wasGuest = net.role === 'guest', wasConnected = net.connected, name = remote.name;
+    if (net.joining && !wasConnected) { failNet('Не удалось подключиться. Проверьте код и попробуйте ещё раз'); return; }
+    net.connected = false;
+    net.conn = null;
+    removeAvatar();
+    remote.alive = false; remote.tp = null;
+    if (wasGuest) {
+        endVisit(`Связь с миром игрока ${name} прервалась. Вы вернулись в свой мир`);
+    } else if (net.role === 'host' && wasConnected) {
+        showToast(`${name} вышел из игры`);
+        setCoopStatus(`${name} вышел. Комната ${net.code} открыта`);
+        saveSoon();
+        updateCoopUI();
+    }
+}
+
+// Guest goes home: the own world comes back from this browser's save
+function endVisit(text) {
+    net.role = null;
+    net.connected = false;
+    net.joining = false;
+    destroyPeer();
+    removeAvatar();
+    invEl.hidden = true;
+    openChest = null; openFurnace = null; picked = null;
+    sleepFade.style.opacity = '0';
+    const own = loadSave();
+    startWorld(own);
+    remoteMobs.clear();
+    state = 'menu';
+    keys.clear(); leftHeld = false;
+    unlockPointer();
+    showMenu('title');
+    playBtn.textContent = own ? 'Продолжить' : 'Играть';
+    setMenuStatus(text);
+    updateCoopUI();
+}
+
+function destroyPeer() {
+    const { conn, peer } = net;
+    net.conn = null; net.peer = null; net.code = '';
+    clearTimeout(net.joinTimer); clearTimeout(net.helloTimer);
+    try { if (conn) conn.close(); } catch (e) { /* ignore */ }
+    try { if (peer) peer.destroy(); } catch (e) { /* ignore */ }
+}
+
+function failNet(text) {
+    const wasGuest = net.role === 'guest';
+    if (wasGuest) { endVisit(text); return; }
+    destroyPeer();
+    net.role = null; net.connected = false; net.joining = false;
+    removeAvatar();
+    setCoopStatus(text, true);
+    updateCoopUI();
+}
+
+function netErrorText(e) {
+    switch (e && e.type) {
+        case 'peer-unavailable': return 'Комната не найдена. Проверьте код';
+        case 'browser-incompatible': return 'Этот браузер не поддерживает игру вдвоём';
+        case 'unavailable-id': return 'Не удалось открыть комнату. Попробуйте ещё раз';
+        case 'network': case 'server-error': case 'socket-error': case 'socket-closed':
+            return 'Нет связи с сервером соединений. Проверьте интернет';
+        default: return 'Ошибка соединения. Попробуйте ещё раз';
+    }
+}
+
+let peerLib = null;
+function loadPeerLib() {
+    const ready = () => window.Peer || (window.peerjs && window.peerjs.Peer);
+    if (ready()) return Promise.resolve(ready());
+    if (!peerLib) {
+        peerLib = new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = PEERJS_URL;
+            s.async = true;
+            s.onload = () => ready() ? resolve(ready()) : reject(new Error('PeerJS missing'));
+            s.onerror = () => { peerLib = null; reject(new Error('PeerJS failed to load')); };
+            document.head.append(s);
+        });
+    }
+    return peerLib;
+}
+
+function bindConn(conn) {
+    conn.on('data', d => { if (conn === net.conn) onNetData(d); });
+    conn.on('close', () => { if (conn === net.conn) onNetClose(); });
+    conn.on('error', () => { if (conn === net.conn) onNetClose(); });
+}
+
+async function hostGame() {
+    if (net.role || net.joining) return;
+    setCoopStatus('Открываем мир…');
+    let Peer;
+    try { Peer = await loadPeerLib(); } catch (e) { setCoopStatus('Не удалось загрузить модуль связи. Проверьте интернет', true); return; }
+    if (net.role || net.joining) return;
+    net.role = 'host';
+    save();
+    openRoom(Peer, 0);
+    updateCoopUI();
+}
+
+function openRoom(Peer, attempt) {
+    const code = randomToken(ROOM_CODE_LEN, ROOM_ALPHABET);
+    let peer;
+    try { peer = new Peer(ROOM_PREFIX + code); } catch (e) { failNet('Этот браузер не поддерживает игру вдвоём'); return; }
+    net.peer = peer;
+    peer.on('open', () => {
+        if (peer !== net.peer) return;
+        net.code = code;
+        setCoopStatus('Скажите другу этот код. Ждём подключения…');
+        updateCoopUI();
+    });
+    peer.on('connection', conn => { if (peer === net.peer) acceptGuest(conn); });
+    peer.on('disconnected', () => {
+        // Lost the introduction server: a friend already here keeps playing, new ones need it back
+        if (peer === net.peer && net.role === 'host') { try { peer.reconnect(); } catch (e) { /* ignore */ } }
+    });
+    peer.on('error', e => {
+        if (peer !== net.peer) return;
+        if (e && e.type === 'unavailable-id' && attempt < 4) {
+            net.peer = null;
+            try { peer.destroy(); } catch (err) { /* ignore */ }
+            openRoom(Peer, attempt + 1);
+            return;
+        }
+        if (net.connected) return;
+        failNet(netErrorText(e));
+    });
+}
+
+function acceptGuest(conn) {
+    if (net.conn) {
+        // Room for one friend at a time
+        conn.on('open', () => { try { conn.send({ t: 'full' }); } catch (e) { /* ignore */ } setTimeout(() => conn.close(), 500); });
+        return;
+    }
+    net.conn = conn;
+    bindConn(conn);
+    clearTimeout(net.helloTimer);
+    net.helloTimer = setTimeout(() => {
+        if (net.conn === conn && !net.connected) { net.conn = null; try { conn.close(); } catch (e) { /* ignore */ } }
+    }, 15000);
+}
+
+async function joinGame(raw) {
+    if (net.role || net.joining) return;
+    const code = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (code.length !== ROOM_CODE_LEN) { setCoopStatus('Код комнаты — 5 букв и цифр', true); return; }
+    setCoopStatus('Подключаемся…');
+    net.joining = true;
+    updateCoopUI();
+    let Peer;
+    try { Peer = await loadPeerLib(); } catch (e) { failNet('Не удалось загрузить модуль связи. Проверьте интернет'); return; }
+    if (!net.joining) return;
+    save(); // the own world is safe in this browser while visiting
+    let peer;
+    try { peer = new Peer(); } catch (e) { failNet('Этот браузер не поддерживает игру вдвоём'); return; }
+    net.peer = peer;
+    net.joinTimer = setTimeout(() => {
+        if (peer === net.peer && net.joining) failNet('Не удалось подключиться. Проверьте код и попробуйте ещё раз');
+    }, 20000);
+    peer.on('open', () => {
+        if (peer !== net.peer) return;
+        const conn = peer.connect(ROOM_PREFIX + code, { reliable: true });
+        net.conn = conn;
+        bindConn(conn);
+        conn.on('open', () => {
+            if (conn === net.conn) conn.send({ t: 'hello', v: NET_VERSION, pid: me().id, name: myName() });
+        });
+    });
+    peer.on('error', e => {
+        if (peer !== net.peer || net.connected) return;
+        failNet(netErrorText(e));
+    });
+}
+
+function cancelJoin() {
+    if (!net.joining) return;
+    failNet('Подключение отменено');
+}
+
+// Host closes the room, or a guest goes home
+function leaveGame() {
+    if (net.role === 'guest') {
+        sendMe();
+        netSend({ t: 'bye' });
+        endVisit('Вы вернулись в свой мир');
+        return;
+    }
+    if (net.role === 'host') {
+        netSend({ t: 'bye' });
+        destroyPeer();
+        net.role = null; net.connected = false;
+        removeAvatar();
+        remote.alive = false; remote.tp = null;
+        setCoopStatus('Мир закрыт для друзей');
+        updateCoopUI();
+    }
+}
+window.addEventListener('beforeunload', () => {
+    if (net.role === 'guest') sendMe();
+    netSend({ t: 'bye' });
+});
+
 // ---------- World lifecycle ----------
 let dayTime = 0.3; // 0 midnight, 0.25 sunrise, 0.5 noon, 0.75 sunset
 let daylight = 1;
@@ -3229,6 +3964,7 @@ let skyLight = 1;
 
 function clearWorld() {
     clearMobs();
+    remoteMobs.clear();
     clearParticles();
     for (const c of chunks.values()) disposeMeshes(c);
     chunks.clear();
@@ -3266,6 +4002,7 @@ function startWorld(saved) {
         chestsFromSave(saved.chests);
         furnacesFromSave(saved.furnaces);
         armorFromSave(saved.armor);
+        guestStore = saved.guests && typeof saved.guests === 'object' ? saved.guests : {};
         player.bed = Array.isArray(saved.bed) && saved.bed.length === 3 ? saved.bed : null;
     } else {
         setSeed(Math.floor(Math.random() * 2 ** 31));
@@ -3276,6 +4013,7 @@ function startWorld(saved) {
         chestStore = {};
         furnaceStore = {};
         armor = [null, null, null, null];
+        guestStore = {};
         player.bed = null;
     }
 
@@ -3500,14 +4238,83 @@ function showMenu(mode) {
     }
     splashEl.hidden = !title;
     if (title) splashEl.textContent = SPLASHES[Math.floor(Math.random() * SPLASHES.length)];
-    newBtn.hidden = !title;
-    fileRow.hidden = dead;
+    // While playing together the world can't be swapped out from under the friend
+    newBtn.hidden = !title || !!net.role;
+    fileRow.hidden = dead || net.role === 'guest';
+    importBtn.hidden = !!net.role;
     miscRow.hidden = dead;
+    coopBtn.hidden = dead;
     titleBtn.hidden = mode !== 'pause';
     overlayKeys.hidden = true;
     keysBtn.setAttribute('aria-expanded', 'false');
     overlayNote.hidden = !title;
+    closeCoop();
+    updateCoopUI();
 }
+
+// ---------- Playing together: menu screen ----------
+const coopBtn = document.getElementById('coop-btn');
+const coopPanel = document.getElementById('coop-panel');
+const menuButtons = document.getElementById('menu-buttons');
+const coopName = document.getElementById('coop-name');
+const roomCodeEl = document.getElementById('room-code');
+const hostBtn = document.getElementById('host-btn');
+const hostCard = document.getElementById('host-card');
+const joinCard = document.getElementById('join-card');
+const joinCode = document.getElementById('join-code');
+const joinBtn = document.getElementById('join-btn');
+const coopStatus = document.getElementById('coop-status');
+const coopLeave = document.getElementById('coop-leave');
+const coopBack = document.getElementById('coop-back');
+
+function setCoopStatus(text, error) {
+    coopStatus.textContent = text || '';
+    coopStatus.className = 'menu-status' + (error ? ' error' : '');
+}
+
+function openCoop() {
+    disarmMenu();
+    setMenuStatus('');
+    coopName.value = me().name;
+    menuButtons.hidden = true;
+    overlayText.hidden = true;
+    overlayKeys.hidden = true;
+    overlayNote.hidden = true;
+    coopPanel.hidden = false;
+    updateCoopUI();
+}
+function closeCoop() {
+    if (coopPanel.hidden) return;
+    coopPanel.hidden = true;
+    menuButtons.hidden = false;
+    overlayText.hidden = false;
+    overlayNote.hidden = menuMode !== 'title';
+}
+
+function updateCoopUI() {
+    const host = net.role === 'host', guest = net.role === 'guest';
+    coopBtn.textContent = net.connected ? `Игра вдвоём · ${remote.name}` : host ? `Игра вдвоём · комната ${net.code || '…'}` : 'Игра вдвоём';
+    coopBtn.className = 'wide' + (net.connected || host ? ' live' : '');
+    hostCard.hidden = guest || !!net.joining;
+    joinCard.hidden = host || guest;
+    roomCodeEl.hidden = !(host && net.code);
+    roomCodeEl.textContent = net.code;
+    hostBtn.textContent = host ? 'Закрыть мир для друга' : 'Открыть мир для друга';
+    hostBtn.className = host ? '' : 'primary';
+    joinBtn.textContent = net.joining ? 'Отменить' : 'Войти';
+    joinCode.disabled = !!net.joining;
+    coopLeave.hidden = !guest;
+    coopName.disabled = !!net.role || !!net.joining;
+}
+
+coopBtn.addEventListener('click', openCoop);
+coopBack.addEventListener('click', closeCoop);
+coopName.addEventListener('input', () => { me().name = cleanName(coopName.value); saveProfile(); });
+hostBtn.addEventListener('click', () => { if (net.role === 'host') leaveGame(); else hostGame(); });
+joinBtn.addEventListener('click', () => { if (net.joining) cancelJoin(); else joinGame(joinCode.value); });
+joinCode.addEventListener('input', () => { joinCode.value = joinCode.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, ROOM_CODE_LEN); });
+joinCode.addEventListener('keydown', e => { if (e.key === 'Enter') joinGame(joinCode.value); });
+coopLeave.addEventListener('click', leaveGame);
 
 function toMainMenu() {
     save();
@@ -3707,15 +4514,20 @@ function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
 
-    const running = state === 'play' || state === 'inventory';
+    // With a friend connected the world keeps going while this player is in a menu
+    const running = state === 'play' || state === 'inventory' || (net.connected && state !== 'sleep');
     if (state === 'play') updatePlayer(dt);
     if (state === 'sleep') updateSleep(dt);
     if (running) {
         dayTime = (dayTime + dt / DAY_LENGTH) % 1;
-        spawnMobs(dt);
-        for (let i = mobs.length - 1; i >= 0; i--) if (mobs[i]) updateMob(mobs[i], dt);
+        if (net.role !== 'guest') spawnMobs(dt);
+        for (let i = mobs.length - 1; i >= 0; i--) {
+            const m = mobs[i];
+            if (m) { if (m.remote) updateRemoteMob(m, dt); else updateMob(m, dt); }
+        }
         updateFurnaces(dt);
     }
+    netUpdate(dt);
     streamChunks(state === 'play' ? 6 : 12);
 
     camera.position.set(player.pos.x, player.pos.y + EYE, player.pos.z);
@@ -3767,7 +4579,8 @@ function frame(now) {
         infoEl.textContent =
             `${fps} к/с · x ${p.x.toFixed(0)} y ${p.y.toFixed(0)} z ${p.z.toFixed(0)} · ` +
             `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}` +
-            (player.fly ? ' · полёт' : '');
+            (player.fly ? ' · полёт' : '') +
+            (net.connected ? ` · вдвоём с ${remote.name}` : net.role === 'host' ? ` · комната ${net.code}` : '');
     }
     requestAnimationFrame(frame);
 }
