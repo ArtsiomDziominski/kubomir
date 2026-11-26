@@ -175,6 +175,57 @@ button:disabled { opacity: 0.4; cursor: default; }
 button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .note { font-size: 12px !important; }
 
+/* Main menu: the world turns slowly behind a big logo and a column of buttons */
+.title-screen {
+    background: linear-gradient(180deg, rgba(8, 14, 20, 0.05) 0%, rgba(8, 14, 20, 0.35) 55%, rgba(8, 14, 20, 0.7) 100%);
+    backdrop-filter: none;
+}
+.title-screen.paused { background: rgba(8, 14, 20, 0.55); backdrop-filter: blur(3px); }
+.menu {
+    width: min(100%, 26rem);
+    display: flex; flex-direction: column; align-items: stretch; gap: 16px;
+    text-align: center;
+}
+.logo { position: relative; padding: 8px 0 18px; }
+.logo h1 {
+    margin: 0; font-family: var(--font-display); font-weight: 800;
+    font-size: clamp(44px, 13vw, 76px); letter-spacing: 0.02em; line-height: 1;
+    color: var(--ink);
+    text-shadow: 0 3px 0 #3b4a40, 0 6px 0 #26312a, 0 10px 24px rgba(0, 0, 0, 0.55);
+}
+.logo h1 em { font-style: normal; color: var(--accent); text-shadow: 0 3px 0 #8a5a12, 0 6px 0 #5c3c0c, 0 10px 24px rgba(0, 0, 0, 0.55); }
+.logo h1.dead { color: var(--danger); font-size: clamp(32px, 9vw, 48px); }
+.splash {
+    position: absolute; right: 2%; bottom: 0;
+    font: 700 14px/1.1 var(--font-body); color: #ffe45c;
+    text-shadow: 0 2px 0 #4a3a00;
+    transform: rotate(-12deg); transform-origin: right center;
+    animation: splash 0.9s ease-in-out infinite alternate;
+    white-space: nowrap; pointer-events: none;
+}
+@keyframes splash { from { scale: 1; } to { scale: 1.1; } }
+.menu > p:not(.menu-status):not(.note) {
+    margin: 0 auto; max-width: 34rem; font-size: 14px; line-height: 1.5; color: var(--ink);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+.menu-buttons { display: flex; flex-direction: column; gap: 8px; }
+.menu-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.menu-buttons button {
+    width: 100%; padding: 13px 12px;
+    background: rgba(14, 22, 30, 0.82); border-color: rgba(238, 243, 239, 0.22);
+}
+.menu-buttons button:hover:not(:disabled) { border-color: var(--accent); }
+.menu-buttons button.primary { background: var(--accent); color: #1d1405; border-color: var(--accent); font-size: 15px; }
+.menu-buttons button.armed { border-color: var(--danger); color: #ffb3b5; }
+.menu-status { margin: 0; min-height: 1.4em; font-size: 13px; color: var(--accent); text-shadow: 0 1px 3px #000; }
+.menu-status.error { color: #ff9b9e; }
+.menu .keys {
+    text-align: left; padding: 14px 16px; border-radius: 12px;
+    background: rgba(14, 22, 30, 0.85); border: 1px solid var(--line);
+}
+.menu .note { margin: 0; color: var(--muted); text-shadow: 0 1px 3px #000; line-height: 1.45; }
+@media (prefers-reduced-motion: reduce) { .splash { animation: none; } }
+
 /* Inventory */
 .inv-panel { width: min(100%, 50rem); gap: 16px; }
 .inv-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
@@ -252,11 +303,28 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <div id="hotbar"></div>
 </div>
 
-<div id="overlay" class="screen">
-    <div class="panel">
-        <h1 id="overlay-title">Kubo<em>mir</em></h1>
-        <p id="overlay-text">Бесконечный мир из блоков. Добывайте дерево и камень, спускайтесь в пещеры за углём, железом, золотом и кристаллами, плавьте руду в печке, создавайте инструменты и броню, освещайте темноту факелами, храните добычу в сундуках и проспите ночь в кровати, пока снаружи бродят Тени. Мир сохраняется в этом браузере.</p>
-        <dl class="keys" id="overlay-keys">
+<div id="overlay" class="screen title-screen">
+    <div class="menu" id="menu">
+        <div class="logo">
+            <h1 id="overlay-title">Kubo<em>mir</em></h1>
+            <span id="splash" class="splash" aria-hidden="true"></span>
+        </div>
+        <p id="overlay-text">Бесконечный мир из блоков. Добывайте дерево и камень, спускайтесь в пещеры за углём, железом, золотом и кристаллами, плавьте руду в печке, создавайте инструменты и броню, освещайте темноту факелами, храните добычу в сундуках и проспите ночь в кровати, пока снаружи бродят Тени.</p>
+        <div class="menu-buttons">
+            <button id="play-btn" class="primary wide" type="button">Играть</button>
+            <button id="new-btn" class="wide" type="button">Новый мир</button>
+            <div class="menu-row" id="file-row">
+                <button id="export-btn" type="button">Сохранить в файл</button>
+                <button id="import-btn" type="button">Загрузить из файла</button>
+            </div>
+            <div class="menu-row" id="misc-row">
+                <button id="keys-btn" type="button" aria-expanded="false" aria-controls="overlay-keys">Управление</button>
+                <button id="title-btn" type="button">Главное меню</button>
+            </div>
+        </div>
+        <p class="menu-status" id="menu-status" role="status"></p>
+        <input type="file" id="import-file" accept=".json,application/json" hidden>
+        <dl class="keys" id="overlay-keys" hidden>
             <dt><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></dt><dd>ходьба, мышь — обзор</dd>
             <dt><kbd>Пробел</kbd></dt><dd>прыжок, всплыть</dd>
             <dt><kbd>Shift</kbd></dt><dd>бег (в полёте — вниз)</dd>
@@ -267,11 +335,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
             <dt><kbd>F</kbd></dt><dd>полёт вкл/выкл</dd>
             <dt><kbd>Esc</kbd></dt><dd>пауза</dd>
         </dl>
-        <div class="actions">
-            <button id="play-btn" class="primary" type="button">Играть</button>
-            <button id="new-btn" type="button">Новый мир</button>
-        </div>
-        <p class="note" id="overlay-note">Нужны клавиатура и мышь.</p>
+        <p class="note" id="overlay-note">Нужны клавиатура и мышь. Мир сохраняется в этом браузере сам; файлом его можно перенести или отправить другу.</p>
     </div>
 </div>
 
@@ -3069,15 +3133,18 @@ function renderInventory() {
 
 // ---------- Saving ----------
 let saveTimer = 0;
-function save() {
-    try {
-        localStorage.setItem(SAVE_KEY, JSON.stringify({
+function saveData() {
+    return {
             seed, edits, dayTime,
             inv: inv.map(s => s ? [s.id, s.n] : null),
             hp: player.hp, spawn: player.spawn, bed: player.bed, chests: chestsForSave(), furnaces: furnacesForSave(),
             armor: armor.map(s => s ? s.id : null),
             player: { x: player.pos.x, y: player.pos.y, z: player.pos.z, yaw: player.yaw, pitch: player.pitch, fly: player.fly }
-        }));
+    };
+}
+function save() {
+    try {
+        localStorage.setItem(SAVE_KEY, JSON.stringify(saveData()));
     } catch (e) { /* storage unavailable: the world just isn't kept */ }
 }
 function saveSoon() {
@@ -3089,6 +3156,70 @@ function loadSave() {
         const raw = localStorage.getItem(SAVE_KEY);
         return raw ? JSON.parse(raw) : null;
     } catch (e) { return null; }
+}
+
+// ---------- World files ----------
+// A world file is the same data as the browser save, wrapped with a marker and a version
+const WORLD_FILE_FORMAT = 1;
+function worldFileText() {
+    return JSON.stringify({ game: 'kubomir', format: WORLD_FILE_FORMAT, savedAt: new Date().toISOString(), world: saveData() });
+}
+function worldFileName() {
+    const d = new Date(), p = n => String(n).padStart(2, '0');
+    return `kubomir-world-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.json`;
+}
+// Returns the world inside a file, or a message saying what is wrong with it
+function parseWorldFile(text) {
+    let data;
+    try { data = JSON.parse(text); } catch (e) { return { error: 'Это не файл мира Kubomir' }; }
+    if (!data || data.game !== 'kubomir' || !data.world) return { error: 'Это не файл мира Kubomir' };
+    if (typeof data.format !== 'number' || data.format > WORLD_FILE_FORMAT) return { error: 'Файл из более новой версии игры' };
+    const w = data.world;
+    if (typeof w.seed !== 'number' || (w.edits && typeof w.edits !== 'object')) return { error: 'Файл мира повреждён' };
+    return { world: w };
+}
+
+// On claude.ai a page offers files through the downloads capability; elsewhere a plain link does it
+let downloadsApi = null;
+const inClaudeView = typeof window.claude === 'object' && window.claude && typeof window.claude.use === 'function';
+if (inClaudeView) window.claude.use('downloads').then(d => { downloadsApi = d; }, () => {});
+
+async function exportWorld() {
+    save();
+    const name = worldFileName(), text = worldFileText();
+    if (inClaudeView) {
+        if (!downloadsApi) { setMenuStatus('Скачивание файлов здесь недоступно', true); return; }
+        try {
+            await downloadsApi.save({ filename: name, data: text });
+            setMenuStatus('Мир сохранён в файл ' + name);
+        } catch (e) {
+            const code = e && e.code;
+            setMenuStatus(code === 'declined' ? 'Сохранение отменено' : 'Не удалось сохранить файл', code !== 'declined');
+        }
+        return;
+    }
+    try {
+        const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+        const a = document.createElement('a');
+        a.href = url; a.download = name;
+        document.body.append(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        setMenuStatus('Мир сохранён в файл ' + name);
+    } catch (e) {
+        setMenuStatus('Не удалось сохранить файл', true);
+    }
+}
+
+// Replaces the current world with the one from a file
+function importWorld(text) {
+    const r = parseWorldFile(text);
+    if (r.error) { setMenuStatus(r.error, true); return false; }
+    startWorld(r.world);
+    save();
+    playBtn.textContent = 'Продолжить';
+    showMenu('title');
+    setMenuStatus('Мир загружен из файла. Нажмите «Продолжить»');
+    return true;
 }
 
 // ---------- World lifecycle ----------
@@ -3316,32 +3447,77 @@ function unlockPointer() {
     if (document.pointerLockElement === canvas && document.exitPointerLock) document.exitPointerLock();
 }
 
+// Main menu ('title'), pause menu ('pause') and death screen ('dead') share one overlay
+const INTRO_TEXT = overlayText.textContent;
+const SPLASHES = ['Теперь с печкой!', 'Копай глубже!', 'Тени не дремлют', 'Кристаллы — где-то внизу',
+    'Факел — лучший друг', 'Не забудь кровать!', 'Броня спасает', 'Мир бесконечен',
+    'Целиком из кубиков', 'Кабаны в моде', 'Сундук не резиновый', 'Ночь длинная', 'Сделано в браузере'];
+const exportBtn = document.getElementById('export-btn');
+const importBtn = document.getElementById('import-btn');
+const importFile = document.getElementById('import-file');
+const keysBtn = document.getElementById('keys-btn');
+const titleBtn = document.getElementById('title-btn');
+const menuStatus = document.getElementById('menu-status');
+const splashEl = document.getElementById('splash');
+const fileRow = document.getElementById('file-row');
+const miscRow = document.getElementById('misc-row');
+let menuMode = 'title';
+let menuSpin = 0; // extra camera turn while the main menu shows the world
+
+function setMenuStatus(text, error) {
+    menuStatus.textContent = text || '';
+    menuStatus.className = 'menu-status' + (error ? ' error' : '');
+}
+
+function disarmMenu() {
+    newArmed = false;
+    importArmed = false;
+    newBtn.textContent = 'Новый мир';
+    importBtn.textContent = 'Загрузить из файла';
+    newBtn.className = 'wide';
+    importBtn.className = '';
+}
+
 function showMenu(mode) {
+    menuMode = mode;
     overlay.hidden = false;
     setHud(false);
-    newArmed = false;
-    newBtn.textContent = 'Новый мир';
+    disarmMenu();
+    setMenuStatus('');
+    overlay.className = 'screen title-screen' + (mode === 'title' ? '' : ' paused');
     overlayTitle.classList.toggle('dead', mode === 'dead');
-    if (mode === 'dead') {
+    const dead = mode === 'dead', title = mode === 'title';
+    if (dead) {
         overlayTitle.textContent = 'Вы погибли';
         overlayText.textContent = player.bed
             ? 'Вещи остались при вас. Вы проснётесь у своей кровати.'
             : 'Вещи остались при вас. Вы вернётесь к точке появления.';
         playBtn.textContent = 'Возродиться';
-        newBtn.hidden = true;
-        overlayKeys.hidden = true;
-        overlayNote.hidden = true;
     } else {
         overlayTitle.innerHTML = 'Kubo<em>mir</em>';
-        if (mode === 'pause') overlayText.textContent = 'Пауза. Мир сохранён в этом браузере.';
-        playBtn.textContent = mode === 'pause' ? 'Продолжить' : playBtn.textContent;
-        newBtn.hidden = false;
-        overlayKeys.hidden = false;
-        overlayNote.hidden = false;
+        overlayText.textContent = title ? INTRO_TEXT : 'Пауза. Мир сохранён в этом браузере.';
+        if (!title) playBtn.textContent = 'Продолжить';
     }
+    splashEl.hidden = !title;
+    if (title) splashEl.textContent = SPLASHES[Math.floor(Math.random() * SPLASHES.length)];
+    newBtn.hidden = !title;
+    fileRow.hidden = dead;
+    miscRow.hidden = dead;
+    titleBtn.hidden = mode !== 'pause';
+    overlayKeys.hidden = true;
+    keysBtn.setAttribute('aria-expanded', 'false');
+    overlayNote.hidden = !title;
+}
+
+function toMainMenu() {
+    save();
+    state = 'menu';
+    menuSpin = 0;
+    showMenu('title');
 }
 
 function startPlaying() {
+    menuSpin = 0;
     overlay.hidden = true;
     invEl.hidden = true;
     state = 'play';
@@ -3406,20 +3582,51 @@ playBtn.addEventListener('click', () => {
     startPlaying();
 });
 
-let newArmed = false;
+let newArmed = false, importArmed = false;
 newBtn.addEventListener('click', () => {
     if (!newArmed) {
+        disarmMenu();
         newArmed = true;
-        newBtn.textContent = 'Стереть текущий мир?';
+        newBtn.textContent = 'Стереть текущий мир? Нажмите ещё раз';
+        newBtn.className = 'wide armed';
         return;
     }
-    newArmed = false;
-    newBtn.textContent = 'Новый мир';
+    disarmMenu();
     try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ }
     startWorld(null);
     save();
     startPlaying();
 });
+
+exportBtn.addEventListener('click', () => { disarmMenu(); exportWorld(); });
+
+// Loading a file replaces the world in this browser, so the first click only asks
+importBtn.addEventListener('click', () => {
+    if (!importArmed) {
+        disarmMenu();
+        importArmed = true;
+        importBtn.textContent = 'Заменить текущий мир?';
+        importBtn.className = 'armed';
+        setMenuStatus('Текущий мир будет заменён. Сохраните его в файл, если он нужен');
+        return;
+    }
+    disarmMenu();
+    setMenuStatus('');
+    importFile.value = '';
+    importFile.click();
+});
+importFile.addEventListener('change', () => {
+    const file = importFile.files && importFile.files[0];
+    if (!file) return;
+    if (file.size > 50 * 1024 * 1024) { setMenuStatus('Файл слишком большой для мира Kubomir', true); return; }
+    file.text().then(importWorld, () => setMenuStatus('Не удалось прочитать файл', true));
+});
+
+keysBtn.addEventListener('click', () => {
+    overlayKeys.hidden = !overlayKeys.hidden;
+    keysBtn.setAttribute('aria-expanded', String(!overlayKeys.hidden));
+});
+titleBtn.addEventListener('click', toMainMenu);
 
 function look(dx, dy) {
     player.yaw -= dx * 0.0022;
@@ -3514,7 +3721,13 @@ function frame(now) {
     camera.position.set(player.pos.x, player.pos.y + EYE, player.pos.z);
     // A quick roll of the view when hurt
     const roll = hurtFlash > 0 ? Math.sin((hurtFlash / 0.45) * Math.PI) * 0.06 : 0;
-    camera.rotation.set(player.pitch, player.yaw, roll);
+    if (state === 'menu' && menuMode === 'title') {
+        // The main menu slowly looks around the world
+        menuSpin += dt * 0.05;
+        camera.rotation.set(-0.12, player.yaw + menuSpin, 0);
+    } else {
+        camera.rotation.set(player.pitch, player.yaw, roll);
+    }
 
     const eyeBlock = getBlock(Math.floor(camera.position.x), Math.floor(camera.position.y), Math.floor(camera.position.z));
     const underwater = eyeBlock === WATER;
@@ -3561,7 +3774,14 @@ function frame(now) {
 
 const saved = loadSave();
 startWorld(saved);
-if (saved) playBtn.textContent = 'Продолжить';
+showMenu('title');
+if (saved) {
+    playBtn.textContent = 'Продолжить';
+} else {
+    // First visit: the controls are open from the start
+    overlayKeys.hidden = false;
+    keysBtn.setAttribute('aria-expanded', 'true');
+}
 requestAnimationFrame(frame);
 })();
 </script>
